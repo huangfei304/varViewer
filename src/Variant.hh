@@ -15,7 +15,7 @@
 namespace varViewer
 {
 struct GenomicRegion {
-    GenomicRegion(std::string chr, int64_t start, int64_t end)
+    GenomicRegion(std::string chr, int start, int end)
         : chrName(chr)
         , start_(start)
         , end_(end)
@@ -27,8 +27,10 @@ struct GenomicRegion {
     }
 
     std::string chrName;
-    int64_t start_;
-    int64_t end_;
+    //int64_t start_;
+    //int64_t end_;
+    int start_;
+    int end_;
 };
 enum class VariantType {
     SNP,
@@ -98,6 +100,11 @@ struct VariantSpecific {
             return false;
         }
     }
+    ~VariantSpecific(){
+        if( !genomic_pos.empty()){
+            std::vector<GenomicRegion>().swap(genomic_pos);
+        }
+    }
     VariantType var_type;
     std::vector<GenomicRegion> genomic_pos;
     std::string transcript="NA";
@@ -106,8 +113,8 @@ struct VariantSpecific {
     std::string infor;
     int exon_size;
     std::string strand="+";
-    int start=0; // CNV start exon
-    int end =0; // CNV end exon
+    int start=0; // CNV start exon number
+    int end =0; // CNV end exon number
 };
 class Variant {
 public:

@@ -311,7 +311,11 @@ void drawLane(ofstream& out, float baseWidth, int xPosStart, float yPos, std::st
                     }
                 } else if (feature.type == FeatureType::kLabel) {
                     if(feature.label){
-                        drawLabel(out, xPos+featureWidth/2, yPos, featureWidth, lane.height, *feature.label, 11,  feature.rate, "middle", int(feature.min), feature.stroke);
+                        if( feature.max == 0.0 ){
+                            drawLabel(out, xPos+featureWidth/2, yPos, featureWidth, lane.height, *feature.label, 11,  feature.rate, "start", int(feature.min), feature.stroke);
+                        }else{
+                            drawLabel(out, xPos+featureWidth/2, yPos, featureWidth, lane.height, *feature.label, 11,  feature.rate, "middle", int(feature.min), feature.stroke);
+                        }
                     }
                 } else if (feature.type == FeatureType::kRectWithLeftBreak) {
                     drawRectWithLeftBreak(out, xPos, yPos, featureWidth, lane.height, feature.fill, feature.stroke);
@@ -435,6 +439,7 @@ void generateSvg(Aligns & alignReads, const string& outputPath, Coverage& cover,
             drawLabel(svgFile, kPlotPadX+kBaseWidth*mutant_info.size()/2, kPlotPadY, kBaseWidth*mutant_info.size(), kPlotPadY, mutant_info, 12);
         }
         svgFile << "</svg>" << std::endl;
+        std::vector<Lane>().swap(lane_plot);
     } else {
         throw std::runtime_error("Unable to open " + outputPath);
     }

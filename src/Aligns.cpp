@@ -223,13 +223,17 @@ void Aligns::min_start_offset(){
         throw logic_error("The min offset is too big or less than 0.");
     }
 
+    if( min_offset > flank_ ){
+        min_offset = (flank_ - 20);
+    }
     for(int i=0;i<AlignReads.size();++i){
         AlignReads[i].read.align.set_reference_start(AlignReads[i].read.align.referenceStart()-min_offset);
         if( AlignReads[i].mate.count>0){
             AlignReads[i].mate.align.set_reference_start(AlignReads[i].mate.align.referenceStart()-min_offset);
         }
-       //AlignReads[i].align = AlignReads[i].align.splitAtReferencePosition(min_offset);
+        //AlignReads[i].align = AlignReads[i].align.splitAtReferencePosition(min_offset);
     }
+
     start_offset_ = min_offset;
 }
 void Aligns::max_end_offset(){
@@ -250,13 +254,15 @@ void Aligns::max_end_offset(){
             }
         }
     }
+
     end_offset_ = tmp_offset + start_offset_;
+
 }
 
 void Aligns::AlignSNV() {
     const string chr_ = var_.genomic_pos.front().chrName;
-    const int64_t start_ = var_.genomic_pos.front().start_;
-    const int64_t end_ = var_.genomic_pos.back().end_;
+    const int start_ = var_.genomic_pos.front().start_;
+    const int end_ = var_.genomic_pos.back().end_;
     VariantType type_  =  var_.var_type;
     const string ref_ = var_.ref;
     const string alt_ = var_.allele;
@@ -341,7 +347,7 @@ void Aligns::AlignSNV() {
                 case BAM_CDEL: // D
                     operations.push_back(Operation(OperationType::kDeletionFromRef, (uint32_t)c_len));
                     for(int j=0;j<c_len;++j){
-                        cigar_base = ref_seq[start+ref_pos+j];
+                        cigar_base[j] = ref_seq[start+ref_pos+j];
                     }
                     if( VariantType::DEL == type_ && (refer_start_offset+ref_pos)==flank_ && alt_ == cigar_base ){
                         cover_.add_coverage(refer_start_offset+ref_pos, VAR_VR);
@@ -354,7 +360,7 @@ void Aligns::AlignSNV() {
                 case BAM_CREF_SKIP: // N
                     operations.push_back(Operation(OperationType::kMissingBases, (uint32_t)c_len));
                     for(int j=0;j<c_len;++j){
-                        cigar_base = ref_seq[start+ref_pos+j];
+                        cigar_base[j] = ref_seq[start+ref_pos+j];
                     }
                     seqInfo.push_back(cigar_base);
                     break;
@@ -412,14 +418,14 @@ void Aligns::AlignSNV() {
         // Store read and alignment
         Read this_read(seqInfo, rec->core.qual, strand, 1, this_align);
 
-        /**
-        * std::cerr<<"Read:"<<read_name<<",start:"<<std::to_string(start)<<",end:"<<std::to_string(end)<<std::endl;
-        * std::cerr<<"offset:"<<std::to_string(refer_start_offset)<<",Alignment:"<<this_align<<std::endl;
-        * for(auto j=seqInfo.begin();j != seqInfo.end(); ++j){
-        *    std::cerr<<*j;
-        * }
-        * std::cerr<<std::endl;
-        **/
+
+        //std::cerr<<"Read:"<<read_name<<",start:"<<std::to_string(start)<<",end:"<<std::to_string(end)<<std::endl;
+        //std::cerr<<"offset:"<<std::to_string(refer_start_offset)<<",Alignment:"<<this_align<<std::endl;
+        //for(auto j=seqInfo.begin();j != seqInfo.end(); ++j){
+        //    std::cerr<<*j;
+        // }
+        // std::cerr<<std::endl;
+
         if (pairedCache.find(read_name) == pairedCache.end()) {
             Read mate_read(0, true, 0);
             Frag tmp_Frag(this_read, mate_read);
@@ -460,8 +466,8 @@ void Aligns::AlignCNV() {
     std::transform(ref_seq.begin(), ref_seq.end(), ref_seq.begin(), ::toupper);
     std::map<string, Frag>pairedCache;
 
-    const int64_t start_ = var_.genomic_pos.front().start_;
-    const int64_t end_ = var_.genomic_pos.back().end_;
+    const int start_ = var_.genomic_pos.front().start_;
+    const int end_ = var_.genomic_pos.back().end_;
     const int32_t tmp_end = ( (end_ + flank_) > chr_len ) ? chr_len : (end_+flank_);
     const int32_t tmp_start = (start_ > flank_) ? start_-flank_ : 1;
     hts_itr_t *iter = sam_itr_queryi(htsIndexPtr, chr_idx, tmp_start, tmp_end);
@@ -597,9 +603,9 @@ void Aligns::AlignCNV() {
 }
 void Aligns::AlignsFusion() {
     const string first_chr = var_.genomic_pos.front().chrName;
-    const int64_t first_bp = var_.genomic_pos.front().start_;
+    const int first_bp = var_.genomic_pos.front().start_;
     const string second_chr = var_.genomic_pos.back().chrName;
-    const int64_t second_bp = var_.genomic_pos.back().start_;
+    const int second_bp = var_.genomic_pos.back().start_;
 
     string ref_seq = seq_.getSequence(first_chr);
     std::transform(ref_seq.begin(), ref_seq.end(), ref_seq.begin(), ::toupper);

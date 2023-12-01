@@ -35,14 +35,14 @@ using std::string;
 using std::vector;
 namespace varViewer {
 struct region {
-    region(int64_t start, int64_t end)
+    region(int start, int end)
         : start_(start)
         , end_(end)
     {
     }
 
-    int64_t start_;
-    int64_t end_;
+    int start_;
+    int end_;
 };
 
 class Depth {
@@ -74,7 +74,7 @@ class Depth {
     void calDepth();
     void normalized_factor();
     std::vector<float> get_factors(){return factors_;}
-    std::vector<int64_t> get_total_depth(){return total_depth;}
+    std::vector<int> get_total_depth(){return total_depth;}
     std::vector<std::string> get_bam_list(){return all_bam; }
 
   private:
@@ -90,7 +90,7 @@ class Depth {
     int  filter_ = BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP;
     std::map<std::string, vector<region>> regions;
     std::vector<std::string> all_bam;
-    std::vector<int64_t> total_depth;
+    std::vector<int> total_depth;
     std::vector<float> factors_;
 };
 }

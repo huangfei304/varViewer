@@ -94,16 +94,16 @@ class Aligns {
             //AlignsFusion(pe_record);
         }else {
             refer_start_ = (var_.genomic_pos.front().start_ > flank_) ? (var_.genomic_pos.front().start_ - flank_ ) : 1;
-            if( var_.var_type == VariantType::CNV || var_.var_type == VariantType::LOSS || var_.var_type == VariantType::DUP || var_.var_type == VariantType::LOSSDUP ){
-                std::cerr<<"CNV analysis"<<std::endl;
-                AlignCNV();
-            }else{
-                AlignSNV();
-            }
+            AlignSNV();
         }
+        //std::cerr<<"Align finished!"<<std::endl;
         sort_AlignReads();
+        //std::cerr<<"sort_AlignReads finished!"<<std::endl;
+        //print_Frag();
         update_offset();
+        //std::cerr<<"update_offset finished!"<<std::endl;
         handle_PE_overlap();
+        //std::cerr<<"handle_PE_overlap finished!"<<std::endl;
     }
 
     void AlignsFusion();
@@ -129,8 +129,8 @@ class Aligns {
     int get_end_offset() { return end_offset_; } // index from start_offset_
     std::string get_chr(){ return var_.genomic_pos.front().chrName;}
     std::string get_end_chr(){return var_.genomic_pos.back().chrName;}
-    int64_t get_start() {return var_.genomic_pos.front().start_; }
-    int64_t get_end() { return var_.genomic_pos.back().end_; }
+    int get_start() {return var_.genomic_pos.front().start_; }
+    int get_end() { return var_.genomic_pos.back().end_; }
     int get_refer_start() {return refer_start_; }
     std::string get_ref_base() {return var_.ref;}
     std::string get_alt_base(){return var_.allele;}
@@ -140,14 +140,14 @@ class Aligns {
     FusionType get_fusion_type(){return fusion_type_;}
     //std::string getSequence(){ seq_.getSequence(chr_); }
     Reference get_reference(){ return seq_; }
-    //std::string getSequence(std::string chrName, int64_t ss, int64_t ee){ seq_.getSequence(chrName,ss, ee); }
+    //std::string getSequence(std::string chrName, int ss, int ee){ seq_.getSequence(chrName,ss, ee); }
     int get_flank(){return flank_;}
     VariantSpecific get_VariantSpecific(){return var_;}
 
     std::vector<Frag> AlignReads;
     private:
         int flank_ = 0;
-        int64_t refer_start_ = 0; // the most left position
+        int refer_start_ = 0; // the most left position
         VariantSpecific& var_;
         Coverage& cover_;
         Reference& seq_;

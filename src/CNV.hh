@@ -127,17 +127,28 @@ class CNV {
 
     std::vector<CNVinfo> cnv_info_;
     std::vector<GTinfo> gt_info_;
+
+    //~CNV() {
+       //std::cerr<<"before: gc_ size:"<<std::to_string(gc_.size())<<", gc_ capacity:"<<std::to_string(gc_.capacity())<<std::endl;
+    //    std::vector<float>().swap(gc_);
+        //std::cerr<<"after: gc_ size:"<<std::to_string(gc_.size())<<", gc_ capacity:"<<std::to_string(gc_.capacity())<<std::endl;
+        //std::cerr<<"before: cover_1 size:"<<std::to_string(cover_1.size())<<",cover_1 capacity:"<<std::to_string(cover_1.capacity())<<std::endl;
+    //    std::vector<float>().swap(cover_1);
+    //    std::vector<float>().swap(cover_30);
+    //    std::vector<float>().swap(map_score_);
+    //    std::vector<CNVinfo>().swap(cnv_info_);
+    //    if( !gt_info_.empty()){
+    //        std::vector<GTinfo>().swap(gt_info_);
+    //    }
+    // }
+
     private:
         int flank_ = 500;
-        int64_t refer_start_ = 0; // the most left position
-        int64_t refer_end_ = 0; // the most right position
+        int refer_start_ = 0; // the most left position
+        int refer_end_ = 0; // the most right position
         VariantSpecific& var_;
         Reference& seq_;
         int mapqual_= 20;
-        samFile *input_sf=NULL;
-        bam_hdr_t *hdr=NULL;
-        //hts_itr_t *iter=NULL;
-        hts_idx_t *index=NULL;
         int filter_ = BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP;
         //Depth& depth_;
         std::vector<std::string> bam_list_;

@@ -22,6 +22,7 @@
 #include <iostream>
 #include <sstream>
 #include <zlib.h>
+#include <unistd.h>
 #include "Aligns.hh"
 #include "utils.hh"
 #include "CNV.hh"
@@ -41,11 +42,14 @@ using std::logic_error;
 
 void CNV::readBam() {
     const string chr_ = var_.genomic_pos.front().chrName;
-    const int64_t start_ = var_.genomic_pos.front().start_;
-    const int64_t end_ = var_.genomic_pos.back().end_;
+    const int start_ = var_.genomic_pos.front().start_;
+    const int end_ = var_.genomic_pos.back().end_;
     const char *mode = "rb";
     //std::vector<std::string> bam_list_ = depth_.get_bam_list();
-    for(int i = 0; i <bam_list_.size(); i++) {
+    for(int i = 0; i <bam_list_.size(); ++i) {
+        samFile *input_sf=NULL;
+        bam_hdr_t *hdr=NULL;
+        hts_idx_t *index=NULL;
         if ((input_sf = sam_open(bam_list_[i].c_str(), mode)) == NULL) {
             fprintf(stderr, "Failed to open input file %s.\n", bam_list_[i].c_str());
             exit(EXIT_FAILURE);
@@ -69,7 +73,8 @@ void CNV::readBam() {
         }
 
         std::vector<int> cover_;
-        for(int j=0;j<(refer_end_ - refer_start_+1);j++){
+        int cover_len = (refer_end_ - refer_start_+1);
+        for(int k=0;k< cover_len;k++){
             cover_.push_back(0);
         }
         bam1_t *rec = bam_init1();
@@ -86,7 +91,7 @@ void CNV::readBam() {
             if ( refer_start_offset < 0 ) continue;
             //fprintf(stderr, "read name: %s.\n", bam_get_qname(rec));
             cigar = bam_get_cigar(rec); // CIGAR
-            ref_pos=rd_pos=0;
+            ref_pos=0;
             for (int j = 0; j < rec->core.n_cigar; ++j) {
                 c_op = bam_cigar_op(cigar[j]);
                 c_len = bam_cigar_oplen(cigar[j]);
@@ -94,10 +99,12 @@ void CNV::readBam() {
                     case BAM_CMATCH: // M
                     case BAM_CEQUAL: // =
                     case BAM_CDIFF: // X
-                        for(int x=0;x<c_len;x++) cover_[refer_start_offset+ref_pos+x]++;
+                        for(int x=0;x<c_len;x++){
+                            if( (refer_start_offset+ref_pos+x) < cover_len ) cover_[refer_start_offset+ref_pos+x]++;
+                        }
                         break;
                     case BAM_CDEL: // D
-                            cover_[refer_start_offset+ref_pos]++;
+                            if( (refer_start_offset+ref_pos) < cover_len ) cover_[refer_start_offset+ref_pos]++;
                         break;
                     /** case BAM_CHARD_CLIP:
                     *    cigar_ = "H";
@@ -119,6 +126,9 @@ void CNV::readBam() {
         }
         bam_destroy1(rec);
         hts_itr_destroy(iter);
+        sam_hdr_destroy(hdr);
+        hts_idx_destroy(index);
+        sam_close(input_sf);
 
         //fprintf(stderr,"AAAAAAAAAAAAAAAAAAAAAA\n");
         //std::cerr<<"refer_start:"<<std::to_string(refer_start_)<<",max:"<<std::to_string(max)<<std::endl;
@@ -127,7 +137,6 @@ void CNV::readBam() {
         //}
         CNVinfo this_info(refer_start_, cover_);
         cnv_info_.push_back(this_info);
-
         fprintf(stderr, "[CNV] Finish read Bam file: %s.\n", bam_list_[i].c_str());
     }
 }
@@ -154,8 +163,8 @@ void CNV::normalizedDepth(){// normalized reference sample depth
 void CNV::calCoverage(){// calculate coverage
     std::cerr<<"[CNV] Start calculate coverage..."<<std::endl;
     for(auto it=var_.genomic_pos.begin();it!=var_.genomic_pos.end();++it){
-        int64_t start = it->start_;
-        int64_t end = it->end_;
+        int start = it->start_;
+        int end = it->end_;
         int start_offset, end_offset, exon_size, this_cover, this_dcover;
         start_offset = start - refer_start_;
         end_offset = end - refer_start_;
@@ -175,57 +184,72 @@ void CNV::calCoverage(){// calculate coverage
     std::cerr<<"[CNV] End calculate coverage..."<<std::endl;
 }
 void CNV::averageDepth(){// reference average depth
-   std::cerr<<"[CNV] Start reference average depth..."<<std::endl;
-   int size = (refer_end_ - refer_start_ + 1);
-   int num = bam_list_.size()-1;
-   std::vector<int> this_cover;
-   for(int i=0;i<size;++i){
+    std::cerr<<"[CNV] Start reference average depth..."<<std::endl;
+    int size = (refer_end_ - refer_start_ + 1);
+    int num = bam_list_.size()-1;
+    std::vector<int> this_cover;
+    for(int i=0;i<size;++i){
         int total = 0;
         for(int j = 1; j <=num; ++j ){
             total += cnv_info_[j].depth_[i];
         }
         total = int(1.0*total/num+0.5);
         this_cover.push_back(total);
-   }
-   CNVinfo this_info(refer_start_,this_cover);
-   cnv_info_.push_back(this_info);
-   std::cerr<<"[CNV] End reference average depth..."<<std::endl;
+    }
+    CNVinfo this_info(refer_start_,this_cover);
+    cnv_info_.push_back(this_info);
+    if( !this_cover.empty()){
+        std::vector<int>().swap(this_cover);
+    }
+    std::cerr<<"[CNV] End reference average depth..."<<std::endl;
 }
 void CNV::readMapability(){
     if ( mapability_ !="" ){
-        std::cerr<<"[CNV] Start read Mapability file:"+mapability_<<std::endl;
         gzFile fp=NULL;
         std::string line;
         std::string chr = var_.genomic_pos.front().chrName;
         std::vector<float> this_map((refer_end_ - refer_start_ + 1),0);
-        if(Z_NULL==(fp=gzopen(mapability_.c_str(),"r"))){
-            fprintf(stderr,"Error opening file: %s\n",mapability_);
-            exit(0);
+        std::string map_file = mapability_+"."+chr+".gz";
+        if( access(mapability_.c_str(), F_OK) == 0 ){
+            if(Z_NULL==(fp=gzopen(mapability_.c_str(),"r"))){
+                fprintf(stderr,"Error opening file: %s\n",mapability_);
+                exit(0);
+            }
+            std::cerr<<"[CNV] Start read Mapability file:"+mapability_<<std::endl;
+        } else if( access(map_file.c_str(), F_OK) ==0 ) {
+            if(Z_NULL==(fp=gzopen(map_file.c_str(),"r"))){
+                fprintf(stderr,"Error opening file: %s\n",map_file);
+                exit(0);
+            }
+            std::cerr<<"[CNV] Start read Mapability file:"+map_file<<std::endl;
+        }else{
+            fprintf(stderr,"Mapping file: %s is not exist\n", mapability_);
         }
 
-    const int LENS = 1024;
-    char buf[LENS];
-    const char *delims = "\t \n";
-     while(gzgets(fp,buf,LENS)!=NULL){
-        char* map_chr = strdup(strtok(buf,delims));
-        std::string chr_s(map_chr, strlen(map_chr));
-        int map_start = atoi(strtok(NULL,delims));
-        int map_end = atoi(strtok(NULL,delims));
-        float map_score = atof(strtok(NULL,delims));
-        if ( chr_s != chr ) continue;
-        if( (map_start >= refer_start_ && map_start <= refer_end_) || (map_end >= refer_start_ && map_end <= refer_end_) ){
-            int min = (map_start < refer_start_ ) ? refer_start_ : map_start;
-            int max = (map_end < refer_end_ ) ?  map_end : refer_end_;
-            int len = max - min+1;
-            int idx = min - refer_start_;
-            for(int i=0;i<len;++i){
-                this_map[i+idx] = map_score;
+        const int LENS = 1024;
+        char buf[LENS];
+        const char *delims = "\t \n";
+        while(gzgets(fp,buf,LENS)!=NULL){
+            char* map_chr = strdup(strtok(buf,delims));
+            std::string chr_s(map_chr, strlen(map_chr));
+            int map_start = atoi(strtok(NULL,delims));
+            int map_end = atoi(strtok(NULL,delims));
+            float map_score = atof(strtok(NULL,delims));
+            if ( chr_s != chr ) continue;
+            if( (map_start >= refer_start_ && map_start <= refer_end_) || (map_end >= refer_start_ && map_end <= refer_end_) ){
+                int min = (map_start < refer_start_ ) ? refer_start_ : map_start;
+                int max = (map_end < refer_end_ ) ?  map_end : refer_end_;
+                int len = max - min+1;
+                int idx = min - refer_start_;
+                for(int i=0;i<len;++i){
+                    this_map[i+idx] = map_score;
+                }
             }
+            delete map_chr;
         }
-     }
-     gzclose(fp);
-     map_score_ = this_map;
-     std::cerr<<"[CNV] Finish read Mapability file:"+mapability_<<std::endl;
+        gzclose(fp);
+        map_score_ = this_map;
+        std::cerr<<"[CNV] Finish read Mapability file:"+mapability_<<std::endl;
     }
 }
 void CNV::readGT(){
@@ -240,7 +264,7 @@ void CNV::readGT(){
                 boost::split(pieces, line, boost::is_any_of("\t"));
                 //vector<string> pieces = splitStringByDelimiter(line,'\t');
                 if (pieces[0] == "#Chr" || pieces[0] != chr ) continue;
-                int64_t pos;
+                int pos;
                 std::stringstream sstream;
                 sstream<<pieces[1];sstream>>pos;
                 if( pos >= refer_start_ && pos <= refer_end_ ){
@@ -280,8 +304,8 @@ void CNV::exonGC(){
     std::vector<float> gc_rate;
 
     for(auto it=var_.genomic_pos.begin();it!=var_.genomic_pos.end();++it){
-        int64_t start = it->start_;
-        int64_t end = it->end_;
+        int start = it->start_;
+        int end = it->end_;
         int total = (end - start + 1);
         int gc_count = 0;
         for (int i=start;i<=end; ++i){
@@ -293,6 +317,10 @@ void CNV::exonGC(){
         gc_rate.push_back(this_gc_rate);
     }
     gc_ = gc_rate;
+    if( !gc_rate.empty() ){
+        std::vector<float>().swap(gc_rate);
+    }
+    ref_seq ="";
     std::cerr<<"[CNV] Finish calculate the GC of the CNV exon."<<std::endl;
 }
 void CNV::mxDepth(){
@@ -303,8 +331,8 @@ void CNV::mxDepth(){
         // just the test and the reference set mean depth
         if( i !=0 && i != bam_list_.size() ) continue;
         for(auto it=var_.genomic_pos.begin();it!=var_.genomic_pos.end();++it){
-            int64_t start = it->start_;
-            int64_t end = it->end_;
+            int start = it->start_;
+            int end = it->end_;
             int start_offset = start - refer_start_;
             int end_offset = end - refer_start_;
             for(int k=start_offset;k<=end_offset;++k){

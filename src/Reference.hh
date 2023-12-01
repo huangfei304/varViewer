@@ -38,12 +38,12 @@ public:
     };
 
     void chr_idx_size();
-    std::string getSequence(const std::string& chrName, int64_t start, int64_t end) const;
+    std::string getSequence(const std::string& chrName, int start, int end) const;
     std::string getSequence(const std::string& chrName) const;
 
 private:
     const faidx_t* htsFastaIndexPtr_;
-    std::vector<int64_t> chr_size_;
+    std::vector<int> chr_size_;
     std::unordered_map<std::string, int32_t> chr_index_;
 };
 }

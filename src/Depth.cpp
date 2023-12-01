@@ -22,7 +22,7 @@ void Depth::readBed(){
             std::vector<std::string> pieces;
             boost::split(pieces, line, boost::is_any_of("\t"));
             //if( chr_ != "all" && chr_ != pieces[0] ) continue;
-            int64_t sstart,eend;
+            int sstart,eend;
             std::stringstream sstream,estream;
             sstream<<pieces[1];sstream>>sstart;
             estream<<pieces[2];estream>>eend;
@@ -56,7 +56,7 @@ void Depth::add_other_bam(){
     }
 }
 void Depth::normalized_factor(){
-    int64_t depth = total_depth[0];
+    int depth = total_depth[0];
     for(int i=0;i<total_depth.size();++i){
         factors_.push_back((1.00 * depth/total_depth[i]));
         std::cerr<<"Index: "<<std::to_string(i)<<", factor:"<<std::to_string(factors_[i])<<std::endl;
@@ -78,13 +78,13 @@ void Depth::calDepth(){
             exit(EXIT_FAILURE);
         }
         fprintf(stderr, "[Depth] Start read Bam file: %s.\n", (*it).c_str());
-        int64_t this_total_depth=0;
+        int this_total_depth=0;
         for(auto iter=regions.begin();iter != regions.end();++iter){
             for(auto i=iter->second.begin();i !=iter->second.end();++i){
-                int64_t start = i->start_;
-                int64_t end = i->end_;
+                int start = i->start_;
+                int end = i->end_;
 
-                int64_t this_depth = 0;
+                int this_depth = 0;
                 int chr_idx = sam_hdr_name2tid(hdr,iter->first.c_str());
                 bam1_t *rec = bam_init1();
                 hts_itr_t *rec_iter = sam_itr_queryi(index, chr_idx, start-flank_, end+flank_);

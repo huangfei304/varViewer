@@ -31,12 +31,12 @@ namespace varViewer
 void Reference::chr_idx_size() {
     for (int contigIndex = 0; contigIndex != faidx_nseq(htsFastaIndexPtr_); ++contigIndex) {
         const char* sequenceName = faidx_iseq(htsFastaIndexPtr_, contigIndex);
-        int64_t sequenceLength = faidx_seq_len(htsFastaIndexPtr_, sequenceName);
+        int sequenceLength = faidx_seq_len(htsFastaIndexPtr_, sequenceName);
         chr_size_.emplace_back(sequenceLength);
         chr_index_.emplace(std::make_pair(sequenceName, contigIndex));
     }
 }
-string Reference::getSequence(const string& chrName, int64_t start, int64_t end) const {
+string Reference::getSequence(const string& chrName, int start, int end) const {
     int extractedLength;
     char* sequencePtr = faidx_fetch_seq(htsFastaIndexPtr_, chrName.c_str(), start - 1, end, &extractedLength);
 

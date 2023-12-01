@@ -30,7 +30,7 @@ Required arguments:\n\
 \n\
 Options:\n\
     -n, --list STR          bam list file for CNV reference, one bam per line\n\
-    -k, --map  STR          mapability file for CNV, gz format\n\
+    -k, --map  STR          mapability file(or mapability file prefix, auto add chrxxx.gz) for CNV, gz format\n\
     -v, --var  STR          variant genotype information for CNV, format[chr,start,ref,alt,info]\n\
     -a, --bed  STR           transcript (gene) file( BED format) for CNV analysis\n\n\
     -w, --width INT          plot width, [1300]\n\
@@ -292,39 +292,45 @@ int varViewer_main(int argc, char **argv)
     }else{
         fprintf(stderr,"Total detected %d variants.\n", total);
     }
-    for(int i=0;i<total;++i){
-        VariantSpecific this_var = varInfo.Index(i);
-        std::string chr = this_var.genomic_pos.front().chrName;
-        const int chr_idx = sam_hdr_name2tid(hdr,chr.c_str());
-        int32_t chr_len = (int32_t)hdr->target_len[chr_idx];
-
-        int64_t start = (this_var.genomic_pos.front().start_ < opts.flank) ? 1 : (this_var.genomic_pos.front().start_ - opts.flank);
-        int64_t end = (this_var.genomic_pos.back().end_ + opts.flank > chr_len) ? chr_len : (this_var.genomic_pos.back().end_ + opts.flank);
-        int64_t var_length = end - start + 1;
-        if( strcmp(opts.type, "SV")==0 || strcmp(opts.type, "SNV")==0 ){
-            if( strcmp(opts.type, "SV")==0 ) var_length = 2*(opts.flank+1);
-            fprintf(stderr,"var_length:%d\n", var_length);
-            Coverage this_cover((int)var_length);
-            fprintf(stderr, "Deal with: %s:%lld-%lld:%s>%s....\n", chr.c_str(), this_var.genomic_pos.front().start_, this_var.genomic_pos.back().end_, this_var.ref.c_str(),this_var.allele.c_str());
-            Aligns this_align(opts.flank, reference, this_var, this_cover, opts.mqual, input_sf, hdr, index);
-            std::cerr<<"start_offset:"<<std::to_string(this_align.get_start_offset())<<",end_offset:"<<std::to_string(this_align.get_end_offset())<<std::endl;
-            //std::cerr<<this_cover<<std::endl;
-            size_t fn_len = strlen(opts.prefix)+strlen(this_var.infor.c_str())+15;
-	        char* outfile=(char*)calloc(fn_len,sizeof(char));
-	   	    sprintf(outfile, "%s_%s_%s.svg", opts.prefix, opts.type, this_var.infor.c_str());
-            generateSvg(this_align, outfile, this_cover, opts);
-        }else if( strcmp(opts.type, "CNV")==0){
+    if( strcmp(opts.type, "CNV")==0 ){
             Depth this_depth(opts.bed, opts.list, opts.bam);
-            //CNV this_cnv(opts.flank, this_var, opts.mqual, this_depth, opts.map, reference);
-            CNV this_cnv(opts.flank, this_var, opts.mqual, this_depth.get_bam_list(), this_depth.get_factors(), opts.map, reference, opts.gt);
-            std::cerr<<"cnv start_offset:"<<std::to_string(this_cnv.get_ref_start())<<",size:"<<std::to_string(this_cnv.get_cnv_size())<<std::endl;
-            size_t fn_len = strlen(opts.prefix)+strlen(opts.type)+1;
-	        char* outfile=(char*)calloc(fn_len,sizeof(char));
-	   	    sprintf(outfile, "%s_%s", opts.prefix, opts.type);
-            generateSvg(this_cnv, outfile, opts);
+            for(int i=0;i<total;++i){
+                VariantSpecific this_var = varInfo.Index(i);
+                CNV this_cnv(opts.flank, this_var, opts.mqual, this_depth.get_bam_list(), this_depth.get_factors(), opts.map, reference, opts.gt);
+                //CNV *this_cnv = new CNV(opts.flank, this_var, opts.mqual, this_depth.get_bam_list(), this_depth.get_factors(), opts.map, reference, opts.gt);
+                std::cerr<<"["<<std::to_string(i+1)<<"/"<<std::to_string(total)<<"]: cnv start_offset:"<<std::to_string(this_cnv.get_ref_start())<<",size:"<<std::to_string(this_cnv.get_cnv_size())<<std::endl;
+                size_t fn_len = strlen(opts.prefix)+strlen(opts.type)+1;
+	            char* outfile=(char*)calloc(fn_len,sizeof(char));
+	   	        sprintf(outfile, "%s_%s", opts.prefix, opts.type);
+                generateSvg(this_cnv, outfile, opts);
+                free(outfile);
+                //delete this_cnv;
+            }
+    }else{
+        for(int i=0;i<total;++i){
+            VariantSpecific this_var = varInfo.Index(i);
+            std::string chr = this_var.genomic_pos.front().chrName;
+            const int chr_idx = sam_hdr_name2tid(hdr,chr.c_str());
+            int32_t chr_len = (int32_t)hdr->target_len[chr_idx];
+
+            int start = (this_var.genomic_pos.front().start_ < opts.flank) ? 1 : (this_var.genomic_pos.front().start_ - opts.flank);
+            int end = (this_var.genomic_pos.back().end_ + opts.flank > chr_len) ? chr_len : (this_var.genomic_pos.back().end_ + opts.flank);
+            int var_length = end - start + 1;
+            if( strcmp(opts.type, "SV")==0 || strcmp(opts.type, "SNV")==0 ){
+                if( strcmp(opts.type, "SV")==0 ) var_length = 2*(opts.flank+1);
+                fprintf(stderr,"var_length:%d\n", var_length);
+                Coverage this_cover((int)var_length);
+                fprintf(stderr, "Deal with: %s:%lld-%lld:%s>%s....\n", chr.c_str(), this_var.genomic_pos.front().start_, this_var.genomic_pos.back().end_, this_var.ref.c_str(),this_var.allele.c_str());
+                Aligns this_align(opts.flank, reference, this_var, this_cover, opts.mqual, input_sf, hdr, index);
+                std::cerr<<"start_offset:"<<std::to_string(this_align.get_start_offset())<<",end_offset:"<<std::to_string(this_align.get_end_offset())<<std::endl;
+                //std::cerr<<this_cover<<std::endl;
+                size_t fn_len = strlen(opts.prefix)+strlen(this_var.infor.c_str())+15;
+	            char* outfile=(char*)calloc(fn_len,sizeof(char));
+	   	        sprintf(outfile, "%s_%s_%s.svg", opts.prefix, opts.type, this_var.infor.c_str());
+                generateSvg(this_align, outfile, this_cover, opts);
+            }
         }
     }
-
     fai_destroy(_fai);
     sam_hdr_destroy(hdr);
     sam_close(input_sf);

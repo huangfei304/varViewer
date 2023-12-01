@@ -122,7 +122,7 @@ static Segment getSegment(Frag& frag, const std::string type, const double opaci
         }
     }
     if( type == "SNV" && this_read.count > 1 ){
-        Feature this_feature(FeatureType::kLabel, 4, "none", "none",1.0);
+        Feature this_feature(FeatureType::kLabel, 8, "black", "black",0.5,0.0,0.0);
         this_feature.label = "x"+std::to_string(this_read.count);
         features.push_back(this_feature);
     }
@@ -136,14 +136,18 @@ static std::vector<Segment> RefLane(Aligns& this_align, std::string type) {
     if( type == "SNV"){
         string fill="url(#OrangeWhiteOrange)";
         int var_length = this_align.get_end() - this_align.get_start() + 1;
+        //std::cerr<<"var start:"<<std::to_string(this_align.get_start())<<",var end:"<<std::to_string(this_align.get_end())<<std::endl;
         int var_start = this_align.get_start();
+        //std::cerr<<"var_length:"<<std::to_string(var_length)<<std::endl;
         int leftflank_length = this_align.get_start() - (this_align.get_refer_start() + this_align.get_start_offset()) - 1;
+        //std::cerr<<"refer_start:"<<std::to_string(this_align.get_refer_start())<<",start_offset:"<<std::to_string(this_align.get_start_offset())<<std::endl;
         int leftflank_start = this_align.get_start() - leftflank_length;
+        //std::cerr<<"leftflank_length:"<<std::to_string(leftflank_length)<<",leftflank_start:"<<std::to_string(leftflank_start)<<std::endl;
         int rightflank_start = this_align.get_end()+1;
         int rightflank_length = this_align.get_end_offset() -this_align.get_start_offset() - leftflank_length - var_length;
+        //std::cerr<<"rightflank start:"<<std::to_string(rightflank_start)<<",right length:"<<std::to_string(rightflank_length)<<std::endl;
         std::string ntseq = this_align.get_reference().getSequence(this_align.get_chr(), leftflank_start, (leftflank_start+leftflank_length+var_length+rightflank_length));
         std::transform(ntseq.begin(), ntseq.end(), ntseq.begin(), ::toupper);
-        //std::cerr<<"left length:"<<std::to_string(leftflank_length)<<",right length:"<<std::to_string(rightflank_length)<<std::endl;
         //std::cerr<<"sequence:"<<ntseq<<std::endl;
         // leftflank
         fill="url(#BlueWhiteBlue)";
@@ -409,7 +413,7 @@ static std::vector<Segment> RDratioLane(std::vector<GenomicRegion>&gregion, int 
                 rate=std::to_string(ratio);
             }else{
                 std::cerr<<"The region ["<<std::to_string(gregion[i].start_)<<","<<std::to_string(gregion[i].end_)<<"] in reference set depth is 0, please check."<<std::endl;
-                exit(1);
+                //exit(1);
             }
             if( index % 3 == 0 ){
                 if( index == 0 ){
@@ -507,64 +511,66 @@ static std::vector<Segment> CoverLane(std::vector<GenomicRegion>&gregion, std::v
     int start = gregion.front().start_ - offset;
     int end = gregion.back().end_ + offset;
     float deta = max - min;
-//    if( offset > 0 ){
-//        features.emplace_back(FeatureType::kLine, offset, "black","black",0.0);
-//    }
-//    for (int i = 0; i< gregion.size(); ++i) {
-//        int size = int((gregion[i].end_ - gregion[i].start_ + 1+1)/2);
-//        float value_1 = (cover[i] > min) ? (cover[i] - min ) : 0.0;
-//        features.emplace_back(FeatureType::kRect, size, color, color, value_1/deta);
-//        float value_30 = (cover30[i] > min) ? (cover30[i] - min ) : 0.0;
-//        features.emplace_back(FeatureType::kRect, size, color3, color3, value_30/deta);
-//        if( i < (gregion.size()-1) ){
-//            int next_size = gregion[i+1].start_ - gregion[i].end_;
-//            features.emplace_back(FeatureType::kLine, next_size, "black","black",0.0);
-//        }
-//    }
-//    if( offset > 0){
-//        features.emplace_back(FeatureType::kLine, offset, "black","black",0.0);
-//    }
-
-    int extend = 40;
-    if( offset > extend ){
-        features.emplace_back(FeatureType::kLine, (offset-extend),"black", "black",0.0);
-    }
-    for(int i=0; i<gregion.size();++i){
-        int size = int(gregion[i].end_ - gregion[i].start_ + 1);
-        if(i==0){
-            size += extend;
-        }else{
-            int next_size = gregion[i].start_ - gregion[i-1].end_;
-            if(next_size >= 2*extend){
+    if( end - start < 5000 ){
+        if( offset > 0 ){
+            features.emplace_back(FeatureType::kLine, offset, "black","black",0.0);
+        }
+        for (int i = 0; i< gregion.size(); ++i) {
+            int size = int((gregion[i].end_ - gregion[i].start_ + 1+1)/2);
+            float value_1 = (cover[i] > min) ? (cover[i] - min ) : 0.0;
+            features.emplace_back(FeatureType::kRect, size, color, color, value_1/deta);
+            float value_30 = (cover30[i] > min) ? (cover30[i] - min ) : 0.0;
+            features.emplace_back(FeatureType::kRect, size, color3, color3, value_30/deta);
+            if( i < (gregion.size()-1) ){
+                int next_size = gregion[i+1].start_ - gregion[i].end_;
+                features.emplace_back(FeatureType::kLine, next_size, "black","black",0.0);
+            }
+        }
+        if( offset > 0){
+            features.emplace_back(FeatureType::kLine, offset, "black","black",0.0);
+        }
+    }else{
+        int extend = 40;
+        if( offset > extend ){
+            features.emplace_back(FeatureType::kLine, (offset-extend),"black", "black",0.0);
+        }
+        for(int i=0; i<gregion.size();++i){
+            int size = int(gregion[i].end_ - gregion[i].start_ + 1);
+            if(i==0){
                 size += extend;
             }else{
-                size += next_size/2;
+                int next_size = gregion[i].start_ - gregion[i-1].end_;
+                if(next_size >= 2*extend){
+                    size += extend;
+                }else{
+                    size += next_size/2;
+                }
             }
-        }
-        if( i == (gregion.size()-1)){
-            size += extend;
-        }else{
-            int next_size = gregion[i+1].start_ - gregion[i].end_;
-            if(next_size >= 2*extend ){
+            if( i == (gregion.size()-1)){
                 size += extend;
             }else{
-                size += (next_size/2);
+                int next_size = gregion[i+1].start_ - gregion[i].end_;
+                if(next_size >= 2*extend ){
+                    size += extend;
+                }else{
+                    size += (next_size/2);
+                }
             }
-        }
-        float value_1 = (cover[i] > min) ? (cover[i] - min ) : 0.0;
-        features.emplace_back(FeatureType::kRect, size/2, color, color, value_1/deta);
-        float value_30 = (cover30[i] > min) ? (cover30[i] - min ) : 0.0;
-        features.emplace_back(FeatureType::kRect, size/2, color3, color3, value_30/deta);
+            float value_1 = (cover[i] > min) ? (cover[i] - min ) : 0.0;
+            features.emplace_back(FeatureType::kRect, size/2+20, color, color, value_1/deta);
+            float value_30 = (cover30[i] > min) ? (cover30[i] - min ) : 0.0;
+            features.emplace_back(FeatureType::kRect, size/2, color3, color3, value_30/deta);
 
-        if( i < (gregion.size()-1) ){
-            int next_size = gregion[i+1].start_ - gregion[i].end_;
-            if( next_size > 2*extend ){
-                features.emplace_back(FeatureType::kLine, (next_size-2*extend), "black","black",0.0);
+            if( i < (gregion.size()-1) ){
+                int next_size = gregion[i+1].start_ - gregion[i].end_;
+                if( next_size > 2*extend ){
+                    features.emplace_back(FeatureType::kLine, (next_size-2*extend), "black","black",0.0);
+                }
             }
         }
-    }
-    if( offset > extend ){
-        features.emplace_back(FeatureType::kLine, (offset-extend),"black", "black",0.0);
+        if( offset > extend ){
+            features.emplace_back(FeatureType::kLine, (offset-extend),"black", "black",0.0);
+        }
     }
 
     Segment flank_segment(0, features, 1);
@@ -645,7 +651,83 @@ static std::vector<Segment> CABANALane(std::vector<GenomicRegion>&gregion, int l
     seg_vec.push_back(cover_segment);
     return seg_vec;
 }
+static std::vector<Segment> LabelLane(std::vector<GenomicRegion>&gregion,std::string type, int offset){
+    std::vector<Segment> seg_vec;
+    std::vector<Feature> features;
 
+    int total_length = (gregion.back().end_ - gregion.front().start_+1) + 2*offset;
+    if( type == "GCMappability" ){
+        features.emplace_back(FeatureType::kLine, total_length/100, "red","red",0.1);
+        features.emplace_back(FeatureType::kLine, total_length/200, "white","white",0.1);
+        features.emplace_back(FeatureType::kLabel, 100, "black","black",0.1,0.0,0.0);
+        features.back().label="GC(%)";
+        Segment gc_segment(int(0.83*total_length), features, 1.0);
+        seg_vec.push_back(gc_segment);
+        features.clear();
+        features.emplace_back(FeatureType::kLine, total_length/100, "grey","grey",0.1);
+        features.emplace_back(FeatureType::kLine, total_length/200, "white","white",0.1);
+        features.emplace_back(FeatureType::kLabel, 100, "black","black",0.1,0.0,0.0);
+        features.back().label="Mappability(%)";
+        Segment map_segment(int(0.90*total_length), features, 1.0);
+        seg_vec.push_back(map_segment);
+    }else if( type =="Coverage" || type == "Depth" ){
+        int start=0;
+        int idx=0;
+        if( gregion.size() == 1 ){
+            start = offset + total_length + 40;
+        }else{
+            int max_len = 0;
+            for (int i = 1; i< (gregion.size()-1); ++i) {
+                int size = (gregion[i+1].start_ - gregion[i].end_);
+                if( size > max_len ){
+                    max_len = size;
+                    idx=i;
+                }
+            }
+            start = 2*offset + (gregion[idx].end_ - gregion[0].start_+1);
+        }
+
+        features.emplace_back(FeatureType::kLine, total_length/100, "red","red",0.1);
+        features.emplace_back(FeatureType::kLine, total_length/200, "white","white",0.1);
+        features.emplace_back(FeatureType::kLabel, 100, "black","black",0.1,0.0,0.0);
+        if( type == "Coverage"){
+            features.back().label="Coverage(%,>=1x)";
+        }else{
+            features.back().label="Test depth";
+        }
+        //if( start > total_length/10 ){
+        //   start += 4*offset;
+        //}
+        Segment cc_segment(start, features, 1.0);
+        seg_vec.push_back(cc_segment);
+        features.clear();
+        features.emplace_back(FeatureType::kLine, total_length/100, "blue","blue",0.3);
+        features.emplace_back(FeatureType::kLine, total_length/200, "white","white",0.3);
+        features.emplace_back(FeatureType::kLabel, 100, "black","black",0.3,0.0,0.0);
+        if( type == "Coverage"){
+            features.back().label="Coverage(%,>=30x)";
+        }else{
+            features.back().label="Refer depth";
+        }
+        Segment dd_segment(start, features, 1.0);
+        seg_vec.push_back(dd_segment);
+    }else if( type == "CABANA"){
+        features.emplace_back(FeatureType::kLine, total_length/100, "red","red",0.98);
+        features.emplace_back(FeatureType::kLine, total_length/200, "white","white",0.98);
+        features.emplace_back(FeatureType::kLabel, 100, "black","black",0.98,0.0,0.0);
+        features.back().label="Test";
+        Segment gc_segment(int(0.86*total_length), features, 1.0);
+        seg_vec.push_back(gc_segment);
+        features.clear();
+        features.emplace_back(FeatureType::kLine, total_length/100, "grey","grey",0.98);
+        features.emplace_back(FeatureType::kLine, total_length/200, "white","white",0.98);
+        features.emplace_back(FeatureType::kLabel, 100, "black","black",0.98,0.0,0.0);
+        features.back().label="Refer";
+        Segment map_segment(int(0.94*total_length), features, 1.0);
+        seg_vec.push_back(map_segment);
+    }
+    return seg_vec;
+}
 LanePlot generateLanePlot(Aligns& align, opts_s& opts, Coverage& cover) {
     //std::cerr<<"GenerateLanPlot start..."<<std::endl;
     //std::vector<Frag> align_read = align.AlignReads;
@@ -653,12 +735,14 @@ LanePlot generateLanePlot(Aligns& align, opts_s& opts, Coverage& cover) {
     std::string type="SNV";
     float lane_height = (opts.lane >15.0) ? opts.lane : 15.0;
     if( strcmp(opts.type, "SNV") ==0 ){
+        //std::cerr<<"Start RefLane."<<std::endl;
         this_laneplot.push_back(Lane(lane_height, {RefLane(align,type)}));
     }else if(strcmp(opts.type, "SV")==0){
         type="SV";
+        //std::cerr<<"Start RefLane."<<std::endl;
         this_laneplot.push_back(Lane(lane_height, {RefLane(align,type)}));
     }
-    //std::cerr<<"Finished RefLane."<<std::endl;
+    std::cerr<<"Finished RefLane."<<std::endl;
    //list<Segment> segments;
     for (int idx = 0; idx != align.AlignReads.size(); ++idx) {
         //std::cerr<<"Index: "<<std::to_string(idx)<<std::endl;
@@ -683,6 +767,7 @@ LanePlot generateLanePlot(Aligns& align, opts_s& opts, Coverage& cover) {
         //segments.push_back(this_segment);
     }
     //this_laneplot.push_back(Lane(10, segments));
+    std::cerr<<"Finished Lane."<<std::endl;
     return this_laneplot;
 }
 LanePlot generateLanePlot(CNV& cnv, opts_s& opts, int pad) {
@@ -708,6 +793,7 @@ LanePlot generateLanePlot(CNV& cnv, opts_s& opts, int pad) {
     }
     multi_seg.push_back(GCLane(this_var.genomic_pos, cnv.get_gc(), pad, "red"));
     multi_seg.push_back(CoordLane(opts.flank, ((end-start+1)+opts.flank), "GC/Mappability", pad, "black",0.0,100.0));
+    multi_seg.push_back(LabelLane(this_var.genomic_pos, "GCMappability", pad));
     this_laneplot.push_back(Lane(opts.lane*10,multi_seg));
 
     multi_seg.clear();
@@ -716,6 +802,7 @@ LanePlot generateLanePlot(CNV& cnv, opts_s& opts, int pad) {
     multi_seg.push_back(CoverLane(this_var.genomic_pos, cnv.get_cover(), cnv.get_cover(30),pad, "red","blue", base/100, 1.00));
     //multi_seg.push_back(CoverGCLane(this_var.genomic_pos, cnv.get_cover(30), pad, "orange"));
     multi_seg.push_back(CoordLane(opts.flank, ((end-start+1)+opts.flank), "Coverage", pad, "black",base, 100.0));
+    multi_seg.push_back(LabelLane(this_var.genomic_pos, "Coverage", pad));
     this_laneplot.push_back(Lane(opts.lane*10,multi_seg));
 
     std::cerr<<"[LanePlot] Sample Depth..."<<std::endl;
@@ -755,6 +842,7 @@ LanePlot generateLanePlot(CNV& cnv, opts_s& opts, int pad) {
     // Insert Coverage Coord
     //multi_seg_depth.emplace(multi_seg_depth.begin(), CoordLane(start, end, "Normalized Depth", pad, "black", float(min), float(max)));
     multi_seg.push_back(CoordLane(start, end, "Normalized Depth", pad, "black", float(min), float(max)));
+    multi_seg.push_back(LabelLane(this_var.genomic_pos, "Depth", pad));
     this_laneplot.push_back(Lane(opts.lane*15, multi_seg));
 
     std::cerr<<"[LanePlot] Sample Variant Information..."<<std::endl;
@@ -823,6 +911,7 @@ LanePlot generateLanePlot(CNV& cnv, opts_s& opts, int pad) {
         exon_length += this_exon_size;
     }
     multi_seg.push_back(CoordLane(1, total_size, "Exon normalized Depth", 0, "black", -1.0, 1.0));
+    multi_seg.push_back(LabelLane(this_var.genomic_pos, "CABANA", pad));
     this_laneplot.push_back(Lane(opts.lane*15, multi_seg));
 
     //features.emplace_back(FeatureType::kLabel, 40, color, color, 0.9);
@@ -836,7 +925,6 @@ LanePlot generateLanePlot(CNV& cnv, opts_s& opts, int pad) {
         string color="black";
         if( this_var.strand == "+" ){
             label = "EX"+std::to_string(i+1);
-
         }else{
             label = "EX"+std::to_string(this_var.genomic_pos.size()-i);
         }

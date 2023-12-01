@@ -62,6 +62,11 @@ struct Feature
         ,max(max_)
     {
     }
+    ~Feature(){
+        if (!depth.empty()){
+            std::vector<float>().swap(depth);
+        }
+    }
     FeatureType type;
     int length;
     boost::optional<std::string> label;
@@ -70,7 +75,7 @@ struct Feature
     std::string stroke;
     float rate = 0.5; // rate of the height from the top, 1 for drawVerticalLine dashedline
     float min = 0.0; // Coverage min depth, or 1 for arrows left direct, kLabel rotate
-    float max = 1.0; // Coverage max depth, or 1 for arrows right direct
+    float max = 1.0; // Coverage max depth, or 1 for arrows right direct, kLabel align direct, 0 for start, 1,middle
 };
 
 //Single or Pair-End reads in the same segment
@@ -86,7 +91,11 @@ struct Segment
             end += feature.length;
         }
     }
-
+    ~Segment(){
+        if (!features.empty()){
+            std::vector<Feature>().swap(features);
+        }
+    }
     int start;
     int end;
     std::vector<Feature> features;
@@ -103,7 +112,13 @@ struct Lane
         start = multi_segments[0].front().start;
         end = multi_segments[0].back().end;
     }
-
+    ~Lane(){
+        if ( !multi_segments.empty() ){
+            for(int i=0;i<multi_segments.size();++i ){
+                std::vector<Segment>().swap(multi_segments[i]);
+            }
+        }
+    }
     float height;
     int start;
     int end;

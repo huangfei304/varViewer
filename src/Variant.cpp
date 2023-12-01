@@ -60,7 +60,7 @@ void Variant::readVariant(){
             //vector<string> pieces = splitStringByDelimiter(line,'\t');
             if (pieces[0] == "Scale") continue;
             VariantType var_type = getVarType(pieces[var_type_index_]);
-            int64_t sstart,eend;
+            int sstart,eend;
             std::stringstream sstream,estream;
             sstream<<pieces[start_index_];sstream>>sstart;
             estream<<pieces[end_index_];estream>>eend;
@@ -92,7 +92,7 @@ void Variant::readSV(){
             boost::split(left_bp, pieces[3], boost::is_any_of(":"));
             boost::split(right_bp, pieces[4], boost::is_any_of(":"));
             //VariantType var_type = getVarType(pieces[var_type_index_]);
-            int64_t sstart,eend;
+            int sstart,eend;
             std::stringstream sstream,estream;
             sstream<<left_bp[1];sstream>>sstart;
             estream<<right_bp[1];estream>>eend;
@@ -121,7 +121,7 @@ void Variant::readCNV(std::string bed_file){
             std::vector<std::string> pieces;
             boost::split(pieces, line, boost::is_any_of("\t"));
 
-            int64_t sstart,eend;
+            int sstart,eend;
             std::stringstream sstream,estream;
             sstream<<pieces[1];sstream>>sstart;
             estream<<pieces[2];estream>>eend;
@@ -175,6 +175,7 @@ void Variant::readCNV(std::string bed_file){
             }
             raw_start=sstart;
             raw_end = eend;
+            // no consider reverse for strand
             if ( tran_strand.at(pieces[2]) == "-" ){
                 sstart = (exon_num - sstart + 1);
                 eend = (exon_num - eend + 1);
